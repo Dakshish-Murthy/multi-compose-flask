@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-        DOCKER_IMAGE = "dakshish/multi-compose-flask"
+        IMAGE_NAME = "dakshish/multi-compose-flask"
     }
 
     stages {
@@ -15,32 +14,34 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh 'docker build -t $DOCKER_IMAGE:latest .'
-                }
+                echo "Building Docker image..."
+                bat 'docker build -t %IMAGE_NAME% .'
             }
         }
 
         stage('Login to Docker Hub') {
             steps {
-                script {
-                    sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                echo "Logging in to Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
                 }
             }
         }
 
         stage('Push Image to Docker Hub') {
             steps {
-                script {
-                    sh 'docker push $DOCKER_IMAGE:latest'
-                }
+                echo "Pushing Docker image to Docker Hub..."
+                bat 'docker push %IMAGE_NAME%'
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline finished.'
+        success {
+            echo '✅ Build and push completed successfully!'
+        }
+        failure {
+            echo '❌ Build failed! Check console output for details.'
         }
     }
 }
