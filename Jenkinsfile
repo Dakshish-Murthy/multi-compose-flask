@@ -2,47 +2,55 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "dakshish/multi-compose-flask"
+        DOCKER_IMAGE = 'dakshish/multi-compose-flask'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Dakshish-Murthy/multi-compose-flask.git'
+                git 'https://github.com/Dakshish-Murthy/multi-compose-flask.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                    echo "Building Docker image..."
-                    bat 'docker build -t %IMAGE_NAME% .'
+                echo 'Building Docker image...'
+                bat 'docker build -t %DOCKER_IMAGE% -f app/Dockerfile .'
             }
-}
-
+        }
 
         stage('Login to Docker Hub') {
             steps {
-                echo "Logging in to Docker Hub..."
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
+                    bat 'docker login -u %DOCKER_HUB_USER% -p %DOCKER_HUB_PASS%'
                 }
             }
         }
 
         stage('Push Image to Docker Hub') {
             steps {
-                echo "Pushing Docker image to Docker Hub..."
-                bat 'docker push %IMAGE_NAME%'
+                echo 'Pushing Docker image to Docker Hub...'
+                bat 'docker push %DOCKER_IMAGE%'
+            }
+        }
+
+        stage('Deploy with Docker Compose') {
+            steps {
+                echo 'Deploying application with Docker Compose...'
+                // Stop any previous containers (if running)
+                bat 'docker-compose down || exit 0'
+                // Start fresh containers
+                bat 'docker-compose up -d'
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build and push completed successfully!'
+            echo '✅ CI/CD pipeline completed successfully!'
         }
         failure {
-            echo '❌ Build failed! Check console output for details.'
+            echo '❌ Build or Deployment failed!'
         }
     }
 }
