@@ -14,10 +14,11 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image..."
-                bat 'docker build -t %IMAGE_NAME% .'
+                    echo "Building Docker image..."
+                    bat 'docker build -t %IMAGE_NAME% -f app/Dockerfile .'
             }
-        }
+}
+
 
         stage('Login to Docker Hub') {
             steps {
