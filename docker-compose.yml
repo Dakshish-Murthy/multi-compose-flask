@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+  web:
+    build: ./app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USER: appuser
+      DB_PASS: apppass
+      DB_NAME: appdb
+    ports:
+      - "5000:5000"
+    networks:
+      - appnet
+    command: python app.py
+
+volumes:
+  db_data:
+
+networks:
+  appnet:
+    driver: bridge
