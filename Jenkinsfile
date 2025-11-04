@@ -43,14 +43,14 @@ pipeline {
         stage('Deploy with Docker Compose') {
             steps {
                 echo "Deploying with docker-compose..."
-                // Ensure we run docker-compose from the workspace where docker-compose.yml lives.
-                // Stop previous stack if any (ignore failures), then start detached.
-                bat 'docker-compose down || exit 0'
-                bat 'docker-compose up -d'
-                // Optional: show running containers
-                bat 'docker ps'
-            }
-        }
+                 bat '''
+                    dir
+                    docker-compose down || exit 0
+                    docker-compose up -d
+                    '''
+    }
+}
+
 
         stage('Smoke Test (optional)') {
             steps {
