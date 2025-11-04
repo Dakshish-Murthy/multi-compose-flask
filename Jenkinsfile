@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-        DOCKER_IMAGE = "dakshishmurthy/multi-compose-flask"
+        DOCKER_IMAGE = "dakshish/multi-compose-flask"
     }
 
     stages {
