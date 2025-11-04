@@ -2,45 +2,64 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'dakshish/multi-compose-flask'
+        IMAGE_NAME = "dakshish/multi-compose-flask"
+        COMPOSE_FILE = "docker-compose.yml"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/Dakshish-Murthy/multi-compose-flask.git'
+                echo "Checking out main branch..."
+                git branch: 'main', url: 'https://github.com/Dakshish-Murthy/multi-compose-flask.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-                bat 'docker build -t %DOCKER_IMAGE% .'
+                echo "Building Docker image: ${env.IMAGE_NAME} ..."
+                // Assumes Dockerfile is at repo root. If your Dockerfile is in app/, change '.' to '-f app/Dockerfile .'
+                bat "docker build -t %IMAGE_NAME% ."
             }
         }
 
         stage('Login to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
-                    bat 'docker login -u %DOCKER_HUB_USER% -p %DOCKER_HUB_PASS%'
+                echo "Logging in to Docker Hub..."
+                // Uses Jenkins credentials with id 'dockerhub'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    // Use -p for Windows cmd login. If you prefer token, set password to token.
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
                 }
             }
         }
 
         stage('Push Image to Docker Hub') {
             steps {
-                echo 'Pushing Docker image to Docker Hub...'
-                bat 'docker push %DOCKER_IMAGE%'
+                echo "Pushing image to Docker Hub: ${env.IMAGE_NAME} ..."
+                bat "docker push %IMAGE_NAME%"
             }
         }
 
         stage('Deploy with Docker Compose') {
             steps {
-                echo 'Deploying application with Docker Compose...'
-                // Stop any previous containers (if running)
+                echo "Deploying with docker-compose..."
+                // Ensure we run docker-compose from the workspace where docker-compose.yml lives.
+                // Stop previous stack if any (ignore failures), then start detached.
                 bat 'docker-compose down || exit 0'
-                // Start fresh containers
                 bat 'docker-compose up -d'
+                // Optional: show running containers
+                bat 'docker ps'
+            }
+        }
+
+        stage('Smoke Test (optional)') {
+            steps {
+                echo "Running quick smoke test (curl to http://localhost:5000)..."
+                // Simple curl check using powershell's Invoke-WebRequest if curl not available
+                // Try curl first; if curl not available, fall back to powershell Invoke-WebRequest
+                bat """
+                    powershell -Command "try { (Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:5000' -TimeoutSec 10).StatusCode } catch { Write-Output 'SMOKE_TEST_FAILED'; exit 1 }"
+                """
             }
         }
     }
@@ -50,7 +69,10 @@ pipeline {
             echo '✅ CI/CD pipeline completed successfully!'
         }
         failure {
-            echo '❌ Build or Deployment failed!'
+            echo '❌ Build or Deployment failed! Check console output for details.'
+        }
+        always {
+            echo "Finished pipeline for ${env.IMAGE_NAME}"
         }
     }
 }
